@@ -1,0 +1,168 @@
+\glsdefs@newdocentry{rca}%
+{%
+name={\acronymfont {\glsentryshort {rca}}},%
+sort={RCA},%
+type={acronym},%
+first={RCA},%
+firstplural={RCAs},%
+text={RCA},%
+plural={RCAs},%
+description={Root Cause Analysis},%
+descriptionplural={Root Cause Analysis},%
+symbol={\relax },%
+symbolplural={\relax },%
+user1={},%
+user2={},%
+user3={},%
+user4={},%
+user5={},%
+user6={},%
+long={Root Cause Analysis},%
+longplural={Root Cause Analysiss},%
+short={RCA},%
+shortplural={RCAs},%
+counter={page},%
+parent={},%
+%
+}%
+
+\glsdefs@newdocentry{cve}%
+{%
+name={\acronymfont {\glsentryshort {cve}}},%
+sort={CVE},%
+type={acronym},%
+first={CVE},%
+firstplural={CVEs},%
+text={CVE},%
+plural={CVEs},%
+description={Common Vulnerabilities and Exposures},%
+descriptionplural={Common Vulnerabilities and Exposures},%
+symbol={\relax },%
+symbolplural={\relax },%
+user1={},%
+user2={},%
+user3={},%
+user4={},%
+user5={},%
+user6={},%
+long={Common Vulnerabilities and Exposures},%
+longplural={Common Vulnerabilities and Exposuress},%
+short={CVE},%
+shortplural={CVEs},%
+counter={page},%
+parent={},%
+%
+}%
+
+\glsdefs@newdocentry{pca}%
+{%
+name={\acronymfont {\glsentryshort {pca}}},%
+sort={PCA},%
+type={acronym},%
+first={PCA},%
+firstplural={PCAs},%
+text={PCA},%
+plural={PCAs},%
+description={Principal Component Analysis},%
+descriptionplural={Principal Component Analysis},%
+symbol={\relax },%
+symbolplural={\relax },%
+user1={},%
+user2={},%
+user3={},%
+user4={},%
+user5={},%
+user6={},%
+long={Principal Component Analysis},%
+longplural={Principal Component Analysiss},%
+short={PCA},%
+shortplural={PCAs},%
+counter={page},%
+parent={},%
+%
+}%
+
+\glsdefs@newdocentry{gdb}%
+{%
+name={\acronymfont {\glsentryshort {gdb}}},%
+sort={GDB},%
+type={acronym},%
+first={GDB},%
+firstplural={GDBs},%
+text={GDB},%
+plural={GDBs},%
+description={GNU Debugger},%
+descriptionplural={GNU Debugger},%
+symbol={\relax },%
+symbolplural={\relax },%
+user1={},%
+user2={},%
+user3={},%
+user4={},%
+user5={},%
+user6={},%
+long={GNU Debugger},%
+longplural={GNU Debuggers},%
+short={GDB},%
+shortplural={GDBs},%
+counter={page},%
+parent={},%
+%
+}%
+
+\glsdefs@newdocentry{png}%
+{%
+name={\acronymfont {\glsentryshort {png}}},%
+sort={PNG},%
+type={acronym},%
+first={PNG},%
+firstplural={PNGs},%
+text={PNG},%
+plural={PNGs},%
+description={Portable Network Graphics},%
+descriptionplural={Portable Network Graphics},%
+symbol={\relax },%
+symbolplural={\relax },%
+user1={},%
+user2={},%
+user3={},%
+user4={},%
+user5={},%
+user6={},%
+long={Portable Network Graphics},%
+longplural={Portable Network Graphicss},%
+short={PNG},%
+shortplural={PNGs},%
+counter={page},%
+parent={},%
+%
+}%
+
+\glsdefs@newdocentry{afl}%
+{%
+name={\acronymfont {\glsentryshort {afl}}},%
+sort={AFL},%
+type={acronym},%
+first={AFL},%
+firstplural={AFLs},%
+text={AFL},%
+plural={AFLs},%
+description={American Fuzzy Lop},%
+descriptionplural={American Fuzzy Lop},%
+symbol={\relax },%
+symbolplural={\relax },%
+user1={},%
+user2={},%
+user3={},%
+user4={},%
+user5={},%
+user6={},%
+long={American Fuzzy Lop},%
+longplural={American Fuzzy Lops},%
+short={AFL},%
+shortplural={AFLs},%
+counter={page},%
+parent={},%
+%
+}%
+
