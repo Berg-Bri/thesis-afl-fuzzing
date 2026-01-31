@@ -2,7 +2,7 @@
 
 
 
-Questa repository contiene il materiale relativo alla mia tesi di laurea riguardante l'uso di \*\*American Fuzzy Lop (AFL)\*\* per l'identificazione di bug nel parsing dei chunk di file PNG.
+Questa repository contiene il materiale relativo alla mia tesi di laurea riguardante l'uso di **American Fuzzy Lop (AFL)** per l'identificazione di bug nel parsing dei chunk di file PNG.
 
 
 
