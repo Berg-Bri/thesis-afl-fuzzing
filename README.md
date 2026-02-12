@@ -8,7 +8,7 @@ Questa repository contiene il materiale relativo alla mia tesi di laurea riguard
 
 ## 📌 Descrizione del Progetto 
 
-Il lavoro si focalizza sulla libreria `libpng` e analizza in particolare come mutazioni specifiche nel chunk \*\*PLTE\*\* (palette) possano portare a crash del software o corruzione di memoria.
+Il lavoro si focalizza sulla libreria `libpng` e analizza in particolare come mutazioni specifiche nel chunk **PLTE** (palette) possano portare a crash del software o corruzione di memoria.
 
 
 
