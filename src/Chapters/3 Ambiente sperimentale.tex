@@ -1,0 +1,121 @@
+\chapter{Ambiente sperimentale}
+
+La valutazione sperimentale delle tecniche di fuzzing richiede un ambiente di esecuzione controllato e riproducibile, in grado di garantire la coerenza dei risultati ottenuti.
+In questo capitolo viene descritto il contesto sperimentale all'interno del quale è stata condotta la campagna di fuzzing, con particolare attenzione alle scelte tecnologiche adottate e alle configurazioni utilizzate.
+
+\section{Debian}
+
+Gli esperimenti sono stati condotti su un sistema operativo Linux, scelta motivata dalla diffusione di tale piattaforma nell'ambito dello sviluppo e testing del software.
+In particolare, è stata utilizzata la distribuzione Debian\cite{distro_linux}, selezionata per la sua stabilità ed attenzione alla sicurezza.
+Una distribuzione Linux consiste in un insieme coerente di software costruito attorno al kernel Linux, comprendente il sistema di base, le librerie e gli strumenti necessari al funzionamento del sistema operativo.
+L'utilizzo di Debian ha consentito di disporre di un ambiente affidabile e riproducibile, adeguato alla compilazione dei programmi target, all'esecuzione del fuzzer e alla raccolta sistematica dei risultati sperimentali.
+
+\section{Hardware}
+Gli esperimenti di fuzzing descritti in questa tesi sono stati eseguiti all’interno di una macchina virtuale ospitata su piattaforma \textit{Proxmox}, al fine di garantire isolamento dell’ambiente di esecuzione e controllo delle risorse disponibili.
+La macchina virtuale è stata configurata con le seguenti caratteristiche hardware:
+\begin{itemize}
+\item \textbf{CPU host}: 32 core virtuali su processore Intel Xeon Gold 6140 (frequenza di base 2.3~GHz)
+\item \textbf{Memoria RAM}: 128~GB
+\end{itemize}
+
+\noindent
+La configurazione della CPU in modalità \textit{host} consente alla macchina virtuale di sfruttare direttamente le funzionalità del processore fisico, riducendo l’overhead di virtualizzazione e fornendo prestazioni adeguate per carichi di lavoro computazionalmente intensivi come il fuzzing feedback-based.
+Questa configurazione hardware è stata scelta per supportare l’elevato numero di esecuzioni richiesto dalla campagna di fuzzing e per minimizzare l’impatto di eventuali colli di bottiglia legati alle risorse di sistema sui risultati sperimentali.
+
+
+
+\section{MAGMA}
+Sebbene il fuzzing si sia dimostrato una tecnica estremamente efficace, il confronto oggettivo tra fuzzer diversi risulta complesso.
+Le metriche comunemente adottate, come il numero di crash rilevati, sono imprecise, poichè molte esecuzioni anomale possono essere riconducibili allo stesso difetto di programmazione, portando a una sovrastima dei risultati ottenuti.
+Nella valutazione di un fuzzer, la natura delle vulnerabilità presenti nel software target riveste un ruolo determinante.
+È possibile distinguere due principali categorie di bug utilizzate nei benchmark di fuzzing:
+
+
+\begin{itemize}
+    \item \textbf{Bug sintetici}: vulnerabilità iniettate automaticamente nel codice tramite script, come nel caso del benchmark LAVA-M. Questo approccio consente di generare un elevato numero di programmi target; tuttavia, le condizioni di attivazione dei bug risultano spesso artificiali e poco rappresentative della complessità del software reale.
+    
+    \item \textbf{Bug reali}: difetti di programmazione effettivamente presenti in versioni di produzione del software. MAGMA adotta una tecnica di \textit{forward-porting} \footnote{Forward-porting: processo che consiste nell'identificare vulnerabilità reali che sono state corrette in passato e nel reintrodurle manualmente all'interno di versioni software moderne e stabili.} per reintrodurre tali vulnerabilità nelle versioni più recenti dei programmi target, preservandone il contesto logico originale. Questi bug risultano profondamente integrati nella logica applicativa e costituiscono una sfida più realistica per i fuzzer.
+    
+\end{itemize}
+
+
+
+\begin{figure}[h]
+    \centering 
+    \includegraphics{figures/Cap3/SummaryOfFuzzer.pdf} %
+    \caption{Confronto tra benchmark di fuzzing e caratteristiche delle vulnerabilità.} 
+\end{figure}
+\noindent
+Come riportato nello studio originale relativo al benchmark MAGMA \cite{magma_documentation}, sono stati analizzati sette fuzzer ampiamente utilizzati, tra cui AFL, AFL++ e Honggfuzzer, per un totale superiore a 200.000 ore di CPU.
+I risultati mostrano come molti fuzzer, pur raggiungendo elevati livelli di copertura del codice, incontrino difficoltà nell'attivare vulnerabilità complesse.
+I programmi target inclusi in MAGMA non sono stati selezionati casualmente, ma tramite un'analisi statistica basata sulla \gls{pca}, al fine di garantire un insieme eterogeneo di software, differenziati per funzionalità quali parsing, compressione e crittografia.
+
+MAGMA è un benchmark di tipo \textit{ground truth} basato su programmi reali contenenti vulnerabilità reali. In particolare, sono state selezionate vulnerabilità documentate tramite identificatori \gls{cve}\footnote{CVE: dizionario standardizzato di vulnerabilità di sicurezza informatica pubblicamente note, che fornisce un identificatore univoco per ogni falla.} e reintegrate nelle versioni più recenti e stabili del software.
+Questo approccio consente di valutare i fuzzer su codice moderno mantenendo la presenza di difetti noti.
+
+Per misurare in modo accurato l'efficacia dei fuzzer, MAGMA introduce nel codice dei sensori, detti \textit{oracoli}, che permettono di distinguere tre livelli di successo:
+
+\begin{itemize}
+    \item \textbf{Reached}: il fuzzer ha eseguito la porzione di codice contenente la vulnerabilità;
+    \item \textbf{Triggered}: l’input ha soddisfatto le condizioni logiche del bug, anche in assenza di un crash;
+    \item \textbf{Detected}: il fuzzer ha effettivamente rilevato la vulnerabilità tramite un crash.
+\end{itemize}
+
+
+\begin{figure}[h]
+    \centering 
+    \includegraphics{figures/Cap3/PCATarget.pdf} %
+    \caption{Caratteristiche dei programmi target inclusi nel benchmark MAGMA e delle rispettive funzionalità di parsing.} 
+\end{figure}
+
+
+\section{Docker}
+Per l’esecuzione della campagna di fuzzing è stata adottata la piattaforma di containerizzazione Docker\cite{docker}, al fine di garantire un ambiente di esecuzione isolato e riproducibile. Tali caratteristiche risultano particolarmente rilevanti nel contesto del fuzzing, dove l’esecuzione prolungata dei fuzzer e la necessità di confrontare i risultati richiedono condizioni sperimentali stabili e coerenti.
+Docker consente di incapsulare all’interno di un contenitore l’intero stack software necessario alla sperimentazione, includendo il fuzzer, i programmi target e le relative dipendenze. Questo approccio rende l’ambiente di esecuzione indipendente dal sistema host e riduce il rischio di interferenze dovute a differenze di configurazione o a modifiche del sistema operativo.
+Nel contesto di questa tesi, Docker è stato utilizzato per eseguire il benchmark MAGMA e il fuzzer AFL in conformità alla configurazione prevista dagli autori del benchmark. L’uso dei container ha permesso di replicare fedelmente le condizioni sperimentali e di facilitare la gestione delle esecuzioni di fuzzing.
+L’adozione di Docker ha inoltre semplificato la gestione delle dipendenze software, in quanto i programmi target presentano requisiti eterogenei in termini di librerie e strumenti di compilazione.
+Infine, l’impiego di Docker ha favorito l’automazione delle campagne sperimentali e l’esecuzione di test su lunga durata, rendendo il processo complessivo più robusto e facilmente gestibile.
+
+
+
+
+\section{Set-up di AFL e del target}
+La configurazione sperimentale ha previsto la selezione esplicita del programma target \textit{libpng}, scelto in quanto rappresentativo di un software reale ampiamente utilizzato e caratterizzato da una logica di parsing complessa.
+MAGMA fornisce script dedicati che consentono di costruire automaticamente un’immagine Docker contenente il fuzzer e il programma target opportunamente strumentato. Durante questa fase, il codice del target viene compilato utilizzando la strumentazione di AFL, in modo da abilitare il tracciamento della copertura di codice e il feedback necessario a guidare il processo di fuzzing.
+Una volta completata la fase di build, la campagna di fuzzing viene avviata tramite uno script che esegue AFL per un intervallo di tempo predefinito. I risultati prodotti durante la campagna, inclusi gli input generati, i crash rilevati e le informazioni di copertura, vengono salvati in una directory condivisa per consentire l’analisi successiva.
+Per l’avvio delle campagne è stata adottata la modalità manuale di MAGMA, basata su script dedicati, in quanto più adatta a esperimenti controllati e mirati su un numero limitato di target. Questo approccio ha permesso di mantenere un controllo diretto sui parametri sperimentali e di semplificare l’interpretazione dei risultati.
+\\
+\begin{figure}[h]
+    \centering 
+    \includegraphics[scale=0.6]{figures/Cap3/Manual Builds.pdf} %
+    \caption{Istruzioni per l'avvio manuale della campagna di fuzzing.} 
+\end{figure}
+
+
+\section{Corpus}
+Nel contesto di questa campagna di fuzzing, il corpus iniziale fornito da MAGMA è costituito da un insieme minimo di input, composto da quattro file PNG intenzionalmente malformati:
+\begin{itemize}
+    \item not\_kitty\_alpha.png
+    \item not\_kitty\_gamma.png
+    \item not\_kitty\_icc.png
+    \item not\_kitty.png
+\end{itemize}
+
+
+\noindent
+Il fuzzing non viene eseguito direttamente sulla libreria libpng, bensì su un programma di test (harness)\footnote{Test harness: nel contesto del fuzzing, si indica un programma di test minimale progettato per ricevere input generati automaticamente dal fuzzer che invoca in modo controllato le funzionalità della libreria o del componente software oggetto di analisi.} che utilizza le API di libpng per il parsing e l’elaborazione di immagini PNG.
+Gli input del corpus iniziale sono progettati per superare le fasi iniziali di parsing di tale programma di test, includendo magic number validi e una struttura sintattica minima conforme al formato PNG, pur contenendo alterazioni strutturali mirate che possono indurre comportamenti anomali durante le fasi successive di elaborazione all’interno della libreria.
+I \textbf{magic number} sono sequenze di byte poste all'inizio di un file e utilizzate dai programmi per identificare il formato dell'input. Nel caso del PNG, essi costituiscono una signature fissa (Figura 2.3) che viene verificata prima di procedere con ulteriori elaborazioni.
+Nel contesto del fuzzing feedback-based, la presenza di controlli sui magic number rappresenta uno dei problemi classici che limitano l'efficacia della generazione di input completamente casuali.
+Gli input che non presentano valori corretti in tali campi vengono scartati immediatamente nelle prime fasi di esecuzione, senza produrre alcun feedback di copertura significativo.
+In assenza di feedback, il fuzzer non è in grado di apprendere quali mutazioni siano promettenti, rimanendo bloccato in percorsi di esecuzione superficiali del programma target.
+L'adozione di un corpus iniziale ridotto ma semanticamente valido rappresenta pertanto una scelta metodologica essenziale per consentire al fuzzer di oltrepassare questi controlli preliminari. 
+AFL utilizza il corpus iniziale come punto di partenza per generare nuovi input tramite mutazioni guidate dalla copertura del codice, applicando modifiche incrementali a file che già soddisfano i vincoli sintattici del formato.
+Durante l'esecuzione della campagna, il corpus si arricchisce dinamicamente: gli input che consentono di superare ulteriori controlli di validazione, raggiungere nuovi percorsi di esecuzione o incrementare la copertura del codice vengono automaticamente selezionati e aggiunti al corpus.
+Questo processo incrementale permette al fuzzer di ampliare gradualmente la varietà e la complessità degli input generati, portando l'esplorazione verso porzioni di codice più profonde e complesse, dove è più probabile imbattersi in comportamenti anomali o vulnerabilità.
+
+
+
+
+
+  

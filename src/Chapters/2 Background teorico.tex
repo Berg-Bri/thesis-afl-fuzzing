@@ -1,0 +1,171 @@
+\chapter{Background teorico}
+Prima di descrivere nel dettaglio la metodologia e gli esperimenti condotti, è utile introdurre i concetti teorici e gli strumenti fondamentali che costituiscono le basi di questa tesi.
+In questo capitolo verranno presentati i principi del fuzzing e poi verrà analizzato in dettaglio il funzionamento del fuzzer American Fuzzy Lop.
+Verranno inoltre spiegate le caratteristiche principali della libreria libpng, scelta come target del fuzzing, e la struttura interna del formato PNG, che servirà per comprendere al meglio il crash analizzato nella Root Cause Analysis.  
+
+\section{Fuzzing}
+A differenza delle tradizionali metodologie di test del software basati su casi costruiti manualmente, il fuzzing\cite{fuzzing_wikipedia_it} è caratterizzato da un'elevata automazione e dalla capacità di generare input nel tentativo di provocare un arresto anomalo e poter quindi individuare errori che altrimenti non verrebero scoperti.
+Tali errori di codice rappresentano aree potenzialmente ad alto rischio per le minacce alla sicurezza.
+Un elemento centrale del fuzzing è la natura degli input prodotti.
+L'idea originaria era quella di inviare dati completamente casuali, mentre i fuzzer moderni adottano strategie più sofisticate: partono da un corpus iniziale di file validi (seed corpus) e applicano mutazioni mirate affinchè gli input risultanti siano sufficientemente stutturati da attraversare le prime fasi del parsing, ma al tempo stesso abbastanza diversi da portare il programma in stati non previsti.
+
+Il fuzzing può essere classificato in tre categorie:
+\begin{itemize}
+    \item \textbf{Black-box fuzzing}: \\ il fuzzer non riceve alcuna informazione sull'esecuzione interna del programma.
+    L'input viene generato in modo casuale o basato su semplici euristiche e si osservano solo eventualmente crash o timeout.
+    È il metodo meno efficiente, poiché difficilmente riesce a produrre input che progressivamente esplorano parti significative del codice.
+    
+    \item \textbf{White-box fuzzing}: \\ Sfrutta completamente il codice sorgente del programma e tecniche di analisi per generare input che soddisfino vincoli specifici.
+    Offre un controllo molto fine sul percorso di esecuzione, ma è estremamemnte costoso in termini computazionali e difficilmente applicabile a software esteso o ricco di branch.
+
+    
+    \item \textbf{Grey-box fuzzing}:\\Rappresenta il compromesso più diffuso e utilizzato nei fuzzer moderni, tra cui AFL. Il fuzzer ha accesso a una quantità minima di informazioni interne, tipicamente la code coverage, ossia una misura delle porzioni di codice effettivamente eseguite durante l'elaborazione di un input. Tale informazione viene utilizzata come meccanismo di feedback per guidare l’evoluzione dei casi di test. Se una mutazione permette di coprire un nuovo ramo o un nuovo percorso, l’input viene considerato interessante e aggiunto al corpus. Questo modello permette un’esplorazione molto più efficace rispetto al black-box, mantenendo al contempo una complessità computazionale ridotta rispetto al white-box.
+
+\newpage
+    
+\end{itemize}
+
+\section{American Fuzzy Lop / libAFL}
+\gls{afl}\cite{afl_docs_motivation} è un software libero che impiega algoritmi genetici\footnote{Algoritmo genetico: sono una classe di algoritmi di ottimizzazione ispirati ai meccanismi dell’evoluzione biologica. Partono da una popolazione iniziale di soluzioni candidate e, attraverso operazioni come mutazione, crossover (ricombinazione) e selezione, producono nuove soluzioni potenzialmente migliori.} per individuare automaticamente casi di test in grado di attivare nuovi stati interni del software di destinazione.
+Rilasciato inizialmente nel novembre del 2013, AFL è rapidamente diventato uno dei fuzzer più utilizzati nella ricerca sulla sicurezza.
+Il codice sorgente è pubblicato su GitHub e il suo nome fa riferimento a una razza di conigli.
+
+AFL richiede che l'utente fornisca un comando per l'esecuzione dell'applicazione da testare e almeno un input valido iniziale.
+Tale input può essere fornito al programma tramite standard input oppure come file specificato nella linea di comando.
+Ad esempio, nel caso di un programma che processa file multimediali, un breve file correttamente formattato può essere utilizzato come seed iniziale.
+Una volta verificato che il comando fornito funzioni correttamente, il fuzzer tenta di ridurre l'input nella forma più semplice possibile, mantenendo lo stesso comportamento osservato.
+Terminata questa fase preliminare, AFL avvia il processo di fuzzing vero e proprio applicando diverse mutazioni agli input disponibili. La generazione di un crash o di un blocco del programma rappresenta l'indicatore principale della scoperta di un bug o di una potenziale vulnerabilità di sicurezza; in tali casi, l'input responsabile viene salvato per consentire un'analisi successiva.
+
+Per massimizzare l'efficacia del fuzzing, AFL richiede che il programma bersaglio venga compilato tramite specifiche utility di strumentazione, le quali inseriscono nel codice meccanismi per il tracciamento del flusso di controllo a basso livello. Questo approccio consente al fuzzer di rilevare con precisione quando un input induce l'esecuzione di nuovi percorsi di codice, guidando così il processo di generazione dei test in modo coverage-guided.
+
+È opportuno distinguere AFL da \texttt{libAFL}\cite{LibAFL}, un framework di fuzzing più recente che rappresenta un’evoluzione concettuale dell’approccio introdotto da AFL. Mentre AFL è un fuzzer monolitico e pronto all’uso, \texttt{libAFL} è una libreria modulare progettata per consentire la realizzazione di fuzzer personalizzati.
+libAFL fornisce componenti riutilizzabili per la gestione di mutazioni, feedback, scheduler ed esecuzione dei target, lasciando allo sviluppatore la definizione delle politiche di fuzzing più appropriate. In questo lavoro, tuttavia, l’attenzione è rivolta esclusivamente all’utilizzo di AFL come strumento di analisi sperimentale, senza ricorrere allo sviluppo di fuzzer custom basati su \texttt{libAFL}.
+
+\subsection{Corpus e seed}
+Il corpus rappresenta l’insieme degli input utilizzati dal fuzzer come base per la generazione dei casi di test. Esso costituisce una componente centrale del fuzzing coverage-guided, poiché determina lo spazio di partenza da cui vengono derivate le mutazioni successive.
+All’avvio della campagna di fuzzing, il corpus è inizializzato a partire da uno o più \textit{seed}, ovvero input validi forniti dall’utente o dal benchmark, che rispettano il formato atteso dal programma target.
+I seed svolgono un ruolo fondamentale nelle fasi iniziali del fuzzing: input ben formati consentono al programma di superare i controlli di parsing e di raggiungere porzioni di codice più profonde, aumentando le probabilità di esplorare nuovi percorsi di esecuzione. Ogni seed può essere considerato un singolo elemento del corpus iniziale.
+Durante l'esecuzione della campagna, il corpus viene aggiornato dinamicamente.
+Ogni input generato dal fuzzer che consente di raggiungere un nuovo percorso di esecuzione o di incrementare la copertura del codice viene promosso ed inserito nella queue\footnote{Queue: cartella contenente tutti gli input che sono stati salvati dal fuzzer} di AFL, ovvero la struttura dati che rappresenta operativamente il corpus attivo.
+In questo modo, il corpus evolve progressivamente, adattandosi al comportamento del programma target e guidando l'esplorazione di nuove aree del codice.
+
+\subsection{Mutator e generator}
+Un \textit{mutator} è il componente del fuzzer responsabile della modifica degli input esistenti al fine di produrre nuovi casi di test.
+Le mutazioni possono essere semplici, come la modifica di singoli bit o byte, oppure più complesse, come l'inserimento di valori particolari o la combinazione di parti di input differenti.
+AFL mette a disposizione un insieme di mutazioni predefinite, progettate per esplorare in modo sistematico e casuale lo spazio degli input.
+
+\noindent
+Di seguito sono descritte le principali tipologie di mutazione utilizzate dal fuzzer:
+
+\begin{itemize}
+    \item \textbf{Flip1/2/4 (Bit Flipping)}: mutazioni che invertono rispettivamente 1, 2 o 4 bit consecutivi lungo l’input. 
+    Questa tecnica consente di individuare rapidamente condizioni di errore legate a singoli bit o a campi di dimensioni ridotte.
+
+    \item \textbf{Arith8/16/32 (Arithmetic Increment/Decrement)}: il fuzzer seleziona rispettivamente un byte (8 bit), una word (16 bit) o una double word (32 bit) e applica incrementi o decrementi di piccoli valori interi. Questo tipo di mutazione è particolarmente efficace nel sollecitare controlli sui limiti e verificare la corretta gestione dei valori numerici.
+
+    \item \textbf{Int8/16/32 (Interesting Values)}: porzioni dell’input vengono sostituite con valori predefiniti noti per essere critici, come valori di soglia, massimi o minimi rappresentabili. Tali valori sono frequentemente associati a errori di overflow, underflow o accessi a memoria non validi.
+
+    \item \textbf{EXT\_AO (Extras / Dictionary)}: il fuzzer inserisce o sostituisce sequenze di byte specifiche, dette \textit{magic bytes}, che il programma target si aspetta di elaborare. 
+    Nel caso dei file PNG, esempi tipici includono marker di formato come \textit{IDAT}. 
+\end{itemize}
+
+\noindent
+Il concetto di \textit{generator}, invece, si riferisce alla creazione di input completamente nuovi, non derivati direttamente da seed esistenti. Mentre AFL si basa prevalentemente su mutazioni incrementali di input validi, altri framework di fuzzing possono adottare generatori basati su modelli, grammatiche o specifiche del formato. Questo approccio risulta particolarmente utile per formati complessi, ma richiede una conoscenza approfondita della struttura degli input.
+
+\noindent
+Nel contesto di AFL, il processo di fuzzing è quindi principalmente mutation-based: l’efficacia del fuzzer dipende dalla qualità del corpus iniziale e dalla capacità dei mutators di produrre variazioni significative che permettano di superare nuovi controlli logici e semantici del programma bersaglio.
+
+\subsection{Stages di AFL: deterministic, havoc e splicing}
+AFL organizza il processo di fuzzing in diverse fasi (\textit{stages}), ciascuna caratterizzata da strategie di mutazione differenti. Questa suddivisione consente di bilanciare l'esplorazione sistematica e l'esplorazione casuale dello spazio degli input.\\
+
+\noindent
+Nella fase \textbf{deterministica}, AFL applica mutazioni semplici e riproducibili, come il flipping e l'incremento o decremento di valori numerici (ovvero le tecninche Flip e Arith citati nella sezione 2.2.2). Questa fase mira ad esplorare in modo ordinato le variazioni più immediate degli input, ed è particolarmente efficace nelle fasi iniziali della campagna.\\
+
+
+\noindent
+La fase \textbf{havoc} introduce, invece, mutazioni fortemente casuali e combinate. In questa modalità, AFL seleziona casualmente diverse operazioni di mutazione e le applica in sequenza sullo stesso input. Havoc consente di generare input altamente distorti, aumentando la probabilità di attivare condizioni di errore non raggiungibili tramite mutazioni deterministiche.\\
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.9]{figures/Cap4/Operazioni Havoc.pdf} 
+    \caption{Screenshot di input generati nel havoc stage.} 
+\end{figure}
+
+
+\noindent
+Infine, la fase di \textbf{splicing} viene attivata quando il fuzzer fatica a trovare nuovi percorsi di esecuzione. In questa fase, AFL combina porzioni di due input distinti presenti nella queue, che hanno coperto percorsi differenti, creando un nuovo input ibrido. Lo splicing consente di esplorare combinazioni di stati interni del programma che non emergerebbero da una singola mutazione incrementale.
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.8]{figures/Cap4/Operazioni Splice.pdf} 
+    \caption{Screenshot di input generati nello splice stage.} 
+\end{figure}
+
+\subsection{Ottimizzazioni}
+L’efficacia del fuzzing dipende in larga misura dal numero di test che possono essere eseguiti nell’unità di tempo. Per questo motivo, AFL adotta diverse tecniche di ottimizzazione dell’esecuzione volte a ridurre l’overhead associato al lancio ripetuto del programma target.
+Una delle ottimizzazioni principali è l’utilizzo del \texttt{fork server}, che evita la creazione completa di un nuovo processo per ogni input. Il programma target viene inizializzato una sola volta e successivamente duplicato tramite \texttt{fork}, riducendo significativamente il costo di avvio.
+In altri contesti di fuzzing avanzato, possono essere utilizzate tecniche di \texttt{snapshotting}, che permettono di ripristinare rapidamente lo stato iniziale del programma prima dell’elaborazione di ogni input. Sebbene AFL non utilizzi direttamente snapshotting a livello applicativo, il principio sottostante è analogo: minimizzare il lavoro ripetuto per massimizzare il throughput dei test.
+Queste ottimizzazioni rendono AFL particolarmente adatto a campagne di fuzzing su larga scala, in cui l’esecuzione efficiente di milioni o miliardi di test rappresenta un fattore determinante per l’individuazione di vulnerabilità.
+
+
+
+\section{Struttura PNG}
+\gls{png}\cite{png_structure} è un formato di file utilizzato in informatica per memorizzare immagini. È stato introdotto nel 1995 ed è caratterizzato da compressione lossless, ovvero una compressione senza perdita di informazioni durante le fasi di compressione e decompressione.
+Il PNG nasce come alternativa libera al formato GIF, con l'obiettivo di fornire un metodo di arichiviazione più moderno che andasse a superare alcune limitazioni tecniche del suo predecessore.
+Il formato è concepito come un contenitore strutturato, organizzato in una sequenza di blocchi chiamati \textit{chunk}, ciascuno dei quali ha un ruolo specifico nella rappresentazione dell'immagine.
+Questa architettura rende PNG relativamente facile da analizzare tramite librerie come libpng.
+I primi 8 byte di un file PNG contengono sempre i seguenti valori:
+
+\begin{verbatim}
+Esadecimale:  89  50  4E  47  0D  0A  1A  0A
+ASCII:         .   P   N   G   .   .   .   .
+\end{verbatim}
+
+\begin{figure}[h]
+    \centering 
+    \includegraphics[scale=0.6]{figures/Cap2/Firma PNG.pdf} %
+    \caption{Signature del file PNG evidenziata in rosso.} 
+\end{figure}
+\noindent
+Questa firma indica che il resto del file contiene una singola immagine PNG, costituita da una serie di blocchi che iniziano con un blocco IHDR\cite{w3c_png_idat} e terminano con un blocco IEND.\\
+Ogni blocco è composto da quattro parti:
+\begin{itemize}
+    \item \textbf{Length}: è un numero intero non negativo di 4 byte, indica esattamente quanti byte sono contenuti nei \textit{chunk data} successivi.
+    
+    \item \textbf{Chunk Type}: è un codice di 4 caratteri ASCII (di 4 byte) che definisce la natura o il contenuto dei dati del segmento.
+    Alcuni dei più importanti sono:
+    \begin{itemize}
+        \item \textit{IHDR}: segmento di intestazione dell'immagine (contiene altezza, larghezza, tipo di colore, ... ). 
+
+        \item \textit{IDAT}: contiene i dati dell’immagine. Quest'ultima può essere suddivisa in più chunk IDAT consecutivi.
+
+        \item \textit{PLTE}: contiene la palette dei colori (obbligatoria per le immagini indicizzate).
+
+        \item \textit{IEND}: segna la fine dell'immagine. 
+    \end{itemize}
+    
+    \item \textbf{Chunk Data}: è il contenuto vero e proprio del chunk. La natura dei dati dipende dal chunk type.
+    
+    \item \textbf{CRC}: il Cyclic Redundancy Check è un valore di controllo di 4 byte calcolato sul chunk Type e sul chunk Data, per verificare l’integrità del blocco.
+    
+\end{itemize}
+
+
+
+
+\section{Libpng}
+La progenitrice di tutte le librerie PNG è \textbf{libpng}, libreria di riferimento gratuita utilizzata da molte delle applicazioni che supportano il formato PNG.
+Sviluppata negli anni '90, è scritta prevalentemente in linguaggio C e si appoggia alla libreria zlib per le operazioni di compressione e decompressione di dati.
+Uno degli obiettivi principali di libpng è garantire la portabilità e la robustezza, per questo motivo viene fornita come libreria indipendente e facilmente integrabile in applicazioni molto diverse tra loro.
+Questo ampio utilizzo fa sì che eventuali vulnerabilità presenti nel codice abbiano un impatto potenzialmente significativo, motivo per cui libpng è oggetto di attività di fuzzing e analisi della sicurezza.\\
+La fase di parsing dei file PNG è gestita dalle funzioni interne della libreria, e si basa principalmente su due strutture dati fondamentali\cite{libpng_manual}:
+\begin{itemize}
+    \item \textbf{pngstruct}: struttura utilizzata per gestire lo stato interno del processo di lettura o scrittura (qui dentro sono contenuti i parametri necessari al flusso di parsing).
+    \item \textbf{pnginfo}: struttura che contiene i metadati del file PNG; memorizza le informazioni descrittive dell'immagine.  
+\end{itemize}
+Il flusso tipico di utilizzo della libreria prevede l'inizializzazione del lettore, la verifica della signature PNG e la successiva lettura sequenziale dei chunk tramite funzioni dedicate (ad esempio \textit{pngread}).
+Ogni chunk viene validato attraverso il controllo della sua lunghezza, del tipo e del CRC, garantendo che la struttura del file sia coerente prima di procedere alle fasi successive.
+
+
+
+

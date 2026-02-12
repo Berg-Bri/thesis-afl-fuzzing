@@ -1,0 +1,31 @@
+\chapter{Discussione}
+Questo capitolo analizza i risultati emersi dalla campagna di fuzzing, con l’obiettivo di interpretare le evidenze sperimentali in relazione all’efficacia della tecnica adottata e alle sue implicazioni pratiche per la sicurezza del software.
+In particolare, verranno esaminati i punti di forza del fuzzing coverage-guided nel trattamento di input altamente strutturati, come i file PNG. L'analisi si sposterà poi sulla vulnerabilità specifica rilevata, contestualizzandola attraverso il riferimento alla relativa CVE e approfondendo la strategia di risoluzione adottata.
+
+
+\section{Punti di forza del fuzzing}
+Il caso di studio conferma diversi punti di forza del fuzzing, in particolare nel contesto di librerie che implementano parser di formati strutturati. 
+AFL è stato in grado di generare input sintatticamente plausibili ma semanticamente inconsistenti, superando i controlli preliminari e raggiungendo porzioni di codice profonde legate alla logica interna di decodifica. 
+Questo aspetto è particolarmente rilevante, poiché molti difetti di sicurezza non emergono con input completamente casuali, ma richiedono combinazioni specifiche di metadati e contenuti che rispettino parzialmente il formato atteso.
+Un ulteriore vantaggio del fuzzing coverage-guided consiste nella capacità di guidare l’evoluzione degli input tramite feedback di esecuzione. 
+L’espansione progressiva del corpus osservata durante la campagna sperimentale evidenzia come il fuzzer non si limiti a esplorare variazioni superficiali, ma costruisca nel tempo input sempre più efficaci, massimizzando la probabilità di attivare vulnerabilità annidate in percorsi di esecuzione profondi, altrimenti difficili da stimolare con test convenzionali.
+
+
+\section{Correzione del crash}
+
+Il crash analizzato è riconducibile alla vulnerabilità documentata nel benchmark MAGMA e associata alla \texttt{CVE-2013-6954}\cite{CVE}, che riguarda la gestione non corretta della palette nei file PNG in presenza di metadati semanticamente inconsistenti. In particolare, la vulnerabilità si manifesta quando il programma tenta di accedere alla struttura dati della palette durante le fasi di trasformazione dell'immagine, senza aver verificato che tale struttura sia stata correttamente allocata e inizializzata in fase di parsing.
+La correzione del bug, così come implementata dagli autori del benchmark MAGMA, consiste nell'introduzione di controlli aggiuntivi sulla coerenza del chunk \texttt{PLTE} e sullo stato interno delle strutture dati associate. In presenza di una palette assente o non valida, l'elaborazione dell'input viene interrotta in modo controllato, evitando che il flusso di esecuzione raggiunga istruzioni critiche che comporterebbero l'accesso a memoria non valida.
+Questo intervento è coerente con il principio di progettazione \textit{fail fast}: qualora le precondizioni logiche richieste per una determinata trasformazione non siano soddisfatte, il programma segnala immediatamente l'errore e termina l'elaborazione dell'input, prevenendo comportamenti indefiniti o crash. Nel caso specifico, il controllo esplicito sulla presenza della palette impedisce la dereferenziazione di un puntatore nullo all'interno della funzione \texttt{png\_do\_expand\_palette}, eliminando la causa diretta del segmentation fault osservato durante l'analisi.
+
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.80]{figures/Cap5/Correzione codice.pdf} 
+    \caption{Patch di sicurezza per la \texttt{CVE-2013-6954} nel repository MAGMA.}
+\end{figure}
+
+\noindent
+La Figura 5.1 mostra un estratto del codice corretto fornito dal benchmark MAGMA, nel quale è possibile osservare l’introduzione di verifiche esplicite sullo stato della palette prima del suo utilizzo. Il confronto tra il comportamento del codice vulnerabile e quello corretto conferma la validità della RCA condotta: il crash non è dovuto a un’anomalia del fuzzer o dell’ambiente di esecuzione, ma a una mancanza di validazione semantica dell’input all’interno della libreria.
+Nel complesso, questa correzione evidenzia come il fuzzing, supportato da benchmark basati su bug reali come MAGMA, non si limiti a individuare crash superficiali, ma consenta di ricondurre tali eventi a vulnerabilità concrete e documentate, facilitando l’analisi delle cause e la definizione di soluzioni robuste. Il collegamento diretto tra input malformato, crash, CVE e patch dimostra l’efficacia del fuzzing come strumento di supporto allo sviluppo di software più sicuro e resiliente.
+
+

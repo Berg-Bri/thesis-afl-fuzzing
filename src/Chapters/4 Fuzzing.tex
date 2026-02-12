@@ -1,0 +1,122 @@
+\chapter{Fuzzing}
+Il presente capitolo descrive e analizza i risultati della campagna di fuzzing.
+L'obiettivo è quello di valutare il comportamento del fuzzer in termini di test, individuazione di crash e capacità di attivare vulnerabilità note.
+L'analisi prende in considerazione sia metriche quantitative, quali il numero di test eseguiti e i crash ottenuti, sia aspetti legati alla natura della vulnerabilità scoperta, attraverso una \gls{rca} e una descrizione dettagliata di quest'ultima.
+Infine vengono discusse possibili strategie di mitigazione della vulnerabilità identificata.
+
+\section{Numero di test}
+Nel contesto del fuzzing, un test corrisponde all'esecuzione del programma target su un input generato o mutato dal fuzzer.
+Il numero complessivo di test eseguiti rappresenta pertanto una misura diretta dell'intensità della campagna di fuzzing e della capacità del fuzzer di esplorare lo spazio degli input.
+Come discusso nel capitolo precedente, il benchmark MAGMA fornisce un corpus iniziale estremamente ridotto, composto da quattro immagini PNG intenzionalmente corrotte.
+A partire da questo insieme minimo, AFL genera progressivamente nuovi casi di test applicando mutazioni automatiche agli input esistenti.
+
+Per questa tesi la campagna è durata \textbf{24 ore} ed il corpus si è arricchito fino a raggiungere un totale di 1557 input distinti, ciascuno associato a un percorso di esecuzione ritenuto interessante dal fuzzer.
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.9]{figures/Cap4/Fine Queue.pdf} 
+    \caption{Screenshot degli ultimi input salvati nella cartella queue.} 
+\end{figure}
+
+\noindent
+Durante l'intera campagna sono stati eseguiti complessivamente circa \textbf{480 milioni di test}, con una velocità media di circa \textbf{4100 esecuzioni al secondo}.
+Il fuzzer ha completato \textbf{537 cicli} sull'intero corpus, applicando mutazioni di profondità crescente, fino a raggiungere una profondità massima pari a \textbf{34}. Questo comportamento indica un’esplorazione progressiva e non superficiale dello spazio degli input.
+\\ \\
+Nello specifico, il numero di cicli indica quante volte il fuzzer ha passato in rassegna l'intero set di input interessanti (corpus), tentando di mutare ogni file esistente per scoprire nuovi percorsi di esecuzione.
+La profondità massima, invece, rappresenta il grado di "evoluzione" dei file generati: un valore pari a 34 indica che gli input più complessi sono il risultato di una catena di 34 mutazioni consecutive andate a buon fine, segno che il fuzzer è riuscito a penetrare logiche di controllo profonde e stratificate del software target.
+Inoltre l'elevata stabilità dell'esecuzione (99,38\%) conferma la regolarità della campagna e l'assenza di anomalie sistematiche.
+Le informazioni relative alla campagna di fuzzing vengono stampate su un file chiamato \textit{fuzzer\_stats}.
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.65]{figures/Cap4/fuzzer_stats.png} 
+    \caption{Screenshot del file fuzzer\_stats, contenente le informazioni relative alla campagna.} 
+\end{figure}
+
+\section{Crash}
+Nel corso della campagna di fuzzing, AFL ha individuato un totale di \textbf{20 crash unici} a fronte di circa 480 milioni di esecuzioni complessive e 537 cicli completati sul corpus iniziale.
+Un crash si verifica quando l'esecuzione del programma target termina in modo anomalo.
+Il numero di crash unici rappresenta una metrica più significativa rispetto al numero totale di crash osservati.
+Questo perchè input diversi possono causare lo stesso errore, portando a una sovrastima del numero di vulnerabilità.
+AFL identifica i crash unici sulla base del segnale di terminazione e dal punto di esecuzione in cui l'errore si manifesta.
+L'assenza di hang unici indica che il fuzzer non ha individuato condizioni di blocco prolungato dell'esecuzione, ma esclusivamente terminazioni anomale riconducibli a veri e propri errori di sicurezza o robustezza del programma.
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.75]{figures/Cap4/crashes.png} 
+    \caption{Screenshot dei crashes trovati con relative informazioni.} 
+\end{figure}
+\noindent
+Dallo screenshot appena riportato, possiamo notare che ogni riga è divisa in più campi:
+\begin{itemize}
+    \item \textbf{Id}: rappresenta l'indice progressivo univoco assegnato dal fuzzer a ogni nuovo crash identificato come unico.
+    
+    \item \textbf{Sig}: indica il numero del segnale di sistema che ha causato l'interruzione del programma. Nel caso specifico, il valore 11 corrisponde a SIGSEGV (Segmentation Fault), segnalando che l'input ha indotto il software a tentare un accesso non valido in una zona di memoria.
+    
+    \item \textbf{Src}: identifica gli input "genitori" (estratti dalla queue) che sono stati utilizzati come base per le mutazioni. Se compaiono due numeri separati dal segno +, significa che il file è il risultato di una combinazione di due seed diversi.
+    
+    \item \textbf{Op}: specifica la tecnica di mutazione finale che ha scatenato il crash.
+
+    \item \textbf{Rep}: specifica quante volte quella particolare operazione è stata ripetuta.
+    
+    \item \textbf{Pos}: indica l'offset esatto all'interno del file dove è stata applicata la mutazione.
+    Questo dato è cruciale per l'analisi manuale del file e per identificare quale campo della struttura dati è corrotto.  
+    
+\end{itemize}
+
+
+\section{Root Cause Analysis}
+L'analisi approfondita è stata condotta solo su un singolo crash rappresentativo. Il crash è stato analizzato utilizzando strumenti come \gls{gdb}\footnote{GDB: è un debugger che consente di ispezionare il funzionamento interno di un programma durante la sua esecuzione. È inoltre in grado di analizzare retrospettivamente lo stato di un'applicazione nel momento esatto in cui si è verificato un errore critico.}\cite{GDB}, l'ispezione dei metadati del file PNG generato dal fuzzer e l'analisi del codice sorgente coinvolto.
+L’obiettivo della RCA è stato quello di identificare la causa del crash e di verificare la sua riconducibilità a una vulnerabilità reale presente nella libreria libpng, come previsto dal benchmark MAGMA.
+Per individuare l'origine del crash, il programma target è stato eseguito sotto il controllo del debugger GDB, analizzando il backtrace e lo stato delle variabili al momento della terminazione anomala.
+Come mostrato in Figura 4.6, l'esecuzione del programma termina con un segnale di tipo SIGSEGV (Segmentation Fault), indicativo di un accesso non valido alla memoria.
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.70]{figures/Cap4/GDB BT.pdf} 
+    \caption{Screenshot di GDB con backtrace e stato delle variabili.} 
+\end{figure}
+
+L'analisi del frame \#0 consente di identificare con precisione il punto in cui avviene l'errore. Risulta evidente che il puntatore \textit{palette} assume valore nullo \textit{0x0} al momento dell'accesso.
+Tale condizione indica che il codice tenta di dereferenziare una struttura dati non inizializzata o assente, in violazione delle assunzioni logiche del programma. 
+I frame successivi del backtrace permettono di ricostruire l'intera catena di chiamate che porta all'esecuzione della funzione vulnerabile.
+Tutto ha origine dal \textit{main}, che invoca \texttt{ExecuteFilesOneByOne} per processare gli input generati dal fuzzer.
+Tale funzione richiama quindi \texttt{LLVMFuzzerTestOneInput}, interfaccia standard utilizzata per l'integrazione dei fuzzer con il programma target.
+Il flusso di esecuzione prosegue all’interno delle funzioni strumentate da MAGMA, in particolare \texttt{MAGMA\_png\_read\_row} e \texttt{MAGMA\_png\_do\_read\_transformations}, responsabili dell’elaborazione delle righe dell’immagine e dell’applicazione delle trasformazioni previste dal formato PNG. All’interno di questo contesto viene infine invocata la funzione \texttt{png\_do\_expand\_palette}, incaricata di espandere i pixel indicizzati in valori RGB consultando la palette dei colori, ovvero il chunk PLTE.
+È proprio in questa fase che l'assenza di una palette valida, non correttamente verificata dalle funzioni chiamanti, causa un'accesso a memoria non valido e la conseguente dereferenziazione di un puntatore nullo, causando il crash del programma.
+
+\noindent
+È stato quindi analizzato anche il file PNG che ha causato il crash. 
+L’ispezione dell’input tramite dump esadecimale mette in evidenza la presenza di un chunk \textit{PLTE} formalmente corretto dal punto di vista strutturale, ma caratterizzato da una lunghezza pari a zero.
+
+\begin{figure}[H]
+    \centering 
+    \includegraphics[scale=0.45]{figures/Cap4/dxx dump.pdf} 
+    \caption{Analisi esadecimale del file PNG che ha generato il crash.} {\small In giallo la lunghezza del chunk, in blu la signature PLTE.}
+    \small 
+\end{figure}
+
+
+\section{Mitigation}
+
+Il crash analizzato evidenzia una classe di vulnerabilità riconducibile
+a una validazione semantica insufficiente dell’input. In particolare,
+il problema non risiede esclusivamente nella dereferenziazione di un puntatore
+nullo, ma nel fatto che lo stato interno del programma possa raggiungere
+fasi critiche di elaborazione senza che siano state verificate tutte le
+precondizioni logiche necessarie.
+Una strategia di mitigazione efficace richiede l’applicazione sistematica
+di rigorosi \textit{sanity check}\footnote{Sanity check: In ambito informatico, un sanity check (o controllo di plausibilità) è un test rapido e localizzato volto a verificare la validità di base di un dato o del risultato di un calcolo.\\}, anche in presenza di formati di input
+standardizzati e ampiamente documentati. Il superamento dei controlli
+sintattici preliminari non deve infatti essere considerato sufficiente
+a garantire la coerenza semantica dei dati.
+In particolare, le funzioni che operano trasformazioni sui dati dovrebbero
+adottare un approccio \textit{fail fast}\footnote{Fail fast: è una filosofia di innovazione che incoraggia a sperimentare rapidamente, identificare i problemi presto e imparare dagli errori velocemente, invece di investire a lungo termine in idee non valide}, interrompendo l’elaborazione in modo
+controllato qualora le precondizioni logiche non siano soddisfatte.
+Questo approccio consente di impedire che input malformati o inconsistenti
+raggiungano istruzioni critiche di accesso alla memoria.
+In un’ottica di \textit{secure coding}\footnote{Secure coding: è un insieme di pratiche, tecniche e linee guida applicate durante lo sviluppo del software per prevenire l'introduzione di vulnerabilità, falle di sicurezza o bug sfruttabili.}, il caso analizzato ribadisce
+l’importanza di mantenere una corrispondenza rigorosa tra i metadati
+dell’input e lo stato interno delle strutture dati allocate, verificando
+sistematicamente la validità dei puntatori e dei vincoli logici prima di
+qualsiasi dereferenziazione.

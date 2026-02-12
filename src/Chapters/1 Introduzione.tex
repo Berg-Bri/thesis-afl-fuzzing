@@ -1,0 +1,41 @@
+\chapter{Introduzione}
+
+\setstretch{1.5}
+La crescente complessità del software moderno e la sua diffusione in ambiti critici, come i sistemi embedded, le applicazioni web e le librerie multimediali, rendono la sicurezza un requisito fondamentale. Una singola vulnerabilità in una libreria ampiamente utilizzata può avere conseguenze critiche su un'enorme quantità di applicazioni, aprendo la strada a crash imprevisti o, nei casi più gravi, ad attacchi mirati. 
+Per questo motivo, negli ultimi anni, la ricerca di tecniche efficaci per individuare vulnerabilità nel software è diventata una priorità.
+Tra i metodi più promettenti per il testing automatico del software troviamo il {\bf fuzzing}, una tecnica che prevede l'immissione di dati non validi, imprevisti o casuali come input tramite appositi programmi detti {\it fuzzer}.
+
+
+
+I fuzzer sono impiegati tipicamente per testare software che elaborano input strutturati, ossia dati o istruzioni organizzati secondo un formato predefinito (ad esempio, file JSON, immagini PNG, pacchetti di rete).
+La funzione del codice di parsing\footnote{Parser: processo che analizza un flusso continuo di dati in ingresso, in modo da determianre la corretezza della sua struttura grazie ad una grammatica formale.} è quella di validare tali input, separando quelli conformi (accettabili) da quelli non conformi.
+Un fuzzer efficace deve generare input simili al formato atteso ma con lievi alterazioni, assicurando così che non vengano immediatamente scartati dal parser. Superando il filtro iniziale, questi input possono creare comportamenti imprevisti nella logica interna del programma e far emergere i "corner case" (o casi limite) che non sono stati gestiti correttamente dagli sviluppatori.
+
+
+
+\section{Contesto}
+Il lavoro effettuato per questa tesi rientra nell'ambito della verifica della  sicurezza del software, con particolare attenzione alla libreria libpng, che si occupa di immagini in formato png. 
+Questa tipologia di librerie è ampiamente usata in progetti open-source.
+Il fuzzing negli anni si è dimostrato uno degli approcci più efficaci per scoprire bug di tipo memory corruption, crash e condizioni non gestite, perchè combina mutazioni automatiche con informazioni di copertura per esplorare percorsi di esecuzione rilevanti. %\section{Obiettivo}
+L'obiettivo di questa tesi è quello di condurre una campagna sperimentale di fuzzing mirata a libpng usando \gls{afl} all'interno del framework MAGMA \cite{magma_fuzzer}, raccogliendo i crash e gli input rilevanti prodotti durante l'esecuzione.
+Una volta ottenuti i crash più significativi, analizzarli in dettaglio mediante tecniche standard di debugging (ad esempio utilizzando GDB \footnote{GNU Debugger: è uno strumento a riga di comando gratuito per il debugging di programmi, che consente agli sviluppatori di esaminare il comportamento di un software in esecuzione per identificare e correggere bug.}) per l'identificazione della causa scatenante.
+Lo scopo finale è quello di documentare almeno un caso di \gls{rca} completo che metta in relazione la mutazione/splicing dell'input generato dal fuzzer con il comportamento anomalo della libreria libpng\cite{libpng_home}.
+
+\section{Struttura tesi}
+La tesi è strutturata nei seguenti capitoli:
+\begin{itemize}
+  \item {\bf Capitolo 1 - }{\it Introduzione:} capitolo appena affrontato che tratta il contesto, le motivazioni e gli obiettivi della tesi.
+  
+  \item {\bf Capitolo 2 - }{\it Background teorico:} panoramica sul testing del software con approfondimenti sul fuzzer AFL e la libreria libpng.
+
+  \item {\bf Capitolo 3 - }{\it Ambiente sperimentale:} descrizione dell’ambiente sperimentale adottato, comprendente il sistema operativo Debian, il framework di valutazione MAGMA, la piattaforma Docker e le configurazioni necessarie all’avvio della campagna di fuzzing.
+
+  \item {\bf Capitolo 4 - }{\it Fuzzing:} presentazione e analisi quantitativa dei risultati della campagna di fuzzing.
+  
+  \item {\bf Capitolo 5 - }{\it Discussione:} valutazione critica della campagna e suggerimenti per migliorare la robustezza della libreria target libpng.
+
+  \item {\bf Capitolo 6 - }{\it Conclusioni:} sintesi dei contributi, lezioni apprese e possibili sviluppi futuri.
+
+  
+\end{itemize}
+

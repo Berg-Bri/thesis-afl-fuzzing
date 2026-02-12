@@ -1,0 +1,43 @@
+\documentclass[12pt]{report} 
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{float}
+\usepackage[a4paper,top=3cm,bottom=3cm,left=3cm,right=3cm]{geometry}
+\usepackage[italian]{babel} 
+\usepackage[acronym]{glossaries}
+\makeglossaries
+\usepackage[backend=biber, style=numeric, sorting=none]{biblatex}
+\setlength{\bibitemsep}{0.8\baselineskip}
+\setlength{\bibparsep}{0.5\baselineskip}
+\addbibresource{Bibliografia.bib}
+\usepackage{csquotes}
+\usepackage{xurl}
+\usepackage{hyperref}
+\hypersetup{breaklinks=true,}
+\AtEveryBibitem{%
+\clearfield{date}}
+\onehalfspacing
+
+
+\begin{document}
+
+\input{title.tex} 
+
+\tableofcontents
+\clearpage
+
+\input{Acronimi}
+\input{Chapters/1 introduzione}
+\input{Chapters/2 background teorico}
+\input{Chapters/3 Ambiente sperimentale}
+\input{Chapters/4 Fuzzing}
+\input{Chapters/5 Discussione}
+\input{Chapters/6 Conclusioni}
+
+
+
+\nocite{*}
+\printbibliography[title={Bibliografia}]
+
+
+\end{document}
